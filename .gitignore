@@ -1,0 +1,15 @@
+static/
+temp/
+.DS_Store
+.env
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+*.test
+
+*.out
+
+go.work
