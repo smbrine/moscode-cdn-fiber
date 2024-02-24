@@ -48,7 +48,6 @@ func createBrotliVersion(filePath string) error {
 		return fmt.Errorf("error compressing file %s: %v", filePath, err)
 	}
 
-	fmt.Printf("Brotli compressed file %s created successfully.\n", compressedFilePath)
 	return nil
 }
 
@@ -85,7 +84,6 @@ func createGzipVersion(filePath string) error {
 		return fmt.Errorf("error compressing file %s: %v", filePath, err)
 	}
 
-	log.Printf("Gzip compressed file %s created successfully.\n", compressedFilePath)
 	return nil
 }
 
@@ -127,7 +125,6 @@ func FetchAndSaveFile(baseURL, filePath, targetDir string) error {
 		return fmt.Errorf("error writing file %s: %v", fullPath, err)
 	}
 
-	log.Printf("File %s saved successfully.\n", fullPath)
 	if err := createBrotliVersion(fullPath); err != nil {
 		log.Printf("Error creating Brotli version of file %s: %v\n", fullPath, err)
 	}

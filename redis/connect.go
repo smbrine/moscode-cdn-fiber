@@ -2,7 +2,8 @@ package redis
 
 import (
 	redisDB "github.com/redis/go-redis/v9"
-	cdnConfig "moscode-cdn-fiber/configs"
+	"log"
+	"moscode-cdn-fiber/configs"
 	"sync"
 )
 
@@ -13,10 +14,11 @@ var (
 
 func getRedisOpt() *redisDB.Options {
 	redisConnectOnce.Do(func() {
-		if a, e := redisDB.ParseURL(cdnConfig.GetRedisURL()); e == nil {
+		appConfig := configs.GetConfig()
+		if a, e := redisDB.ParseURL(appConfig.RedisURL); e == nil {
 			redisConnect = a
 		} else {
-			println(e)
+			log.Fatal(e)
 		}
 	})
 

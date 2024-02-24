@@ -1,44 +1,42 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/log"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/robfig/cron/v3"
-	iLog "log"
+	"log"
 	"moscode-cdn-fiber/api/handlers"
 	"moscode-cdn-fiber/configs"
-	cron2 "moscode-cdn-fiber/internal/cron"
+	cdnCron "moscode-cdn-fiber/internal/cron"
 )
 
 func main() {
 	app := fiber.New()
+	c := cron.New(cron.WithSeconds())
 
-	app.Use(cors.New())
+	appConfig := configs.GetConfig()
 
-	cron2.UpdateStaticJob()
-	cron2.UpdateIndexJob()
+	staticSpec := fmt.Sprintf("*/%v * * * * *", appConfig.RefreshFilesSec)
+	indexSpec := fmt.Sprintf("*/%v * * * * *", appConfig.RefreshIndexSec)
+
+	cdnCron.ScheduleCronJob(c, staticSpec, cdnCron.UpdateStaticJob)
+	cdnCron.ScheduleCronJob(c, indexSpec, cdnCron.UpdateIndexJob)
 
 	for _, page := range configs.UrlPages {
 		app.Get(page, func(c *fiber.Ctx) error { c.Path("/index.html"); return handlers.HandleStatic(c) })
 	}
 
+	app.Use(cors.New())
+
 	app.Use(func(c *fiber.Ctx) error {
 		return handlers.HandleStatic(c)
 	})
 
-	c := cron.New(cron.WithSeconds())
-
-	if _, err := c.AddFunc("*/10 * * * * *", cron2.UpdateStaticJob); err != nil {
-		iLog.Println("Error scheduling the cron job:", err)
-	}
-
-	if _, err := c.AddFunc("*/10 * * * * *", cron2.UpdateIndexJob); err != nil {
-		iLog.Println("Error scheduling the cron job:", err)
-	}
-
 	c.Start()
 	defer c.Stop()
+	addr := appConfig.ServerHost
+	port := appConfig.ServerPort
 
-	log.Fatal(app.Listen(":8080"))
+	log.Fatal(app.Listen(fmt.Sprintf("%v:%v", addr, port)))
 }

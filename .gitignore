@@ -13,3 +13,4 @@ temp/
 *.out
 
 go.work
+.idea/

@@ -51,6 +51,5 @@ func EmptyDir(dirPath string) error {
 		}
 	}
 
-	log.Printf("Successfully emptied directory: %s", dirPath)
 	return nil
 }

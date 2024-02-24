@@ -45,8 +45,9 @@ func fetchURL(url string, res *apiData) error {
 }
 
 func UpdateStatic(url string) error {
-	var TempDir = configs.GetTempDir()
-	var StaticDir = configs.GetStaticDir()
+	appConfig := configs.GetConfig()
+	var TempDir = appConfig.TempDir
+	var StaticDir = appConfig.StaticDir
 	var update apiData
 
 	if err := fetchURL(url, &update); err != nil {
@@ -60,7 +61,7 @@ func UpdateStatic(url string) error {
 		return nil
 	}
 
-	if err := iosync.FetchAndSaveFiles(configs.GetBaseURL(), update.Files, TempDir); err != nil {
+	if err := iosync.FetchAndSaveFiles(appConfig.BaseURL, update.Files, TempDir); err != nil {
 		log.Printf("Error fetching and saving files: %v", err)
 		return nil
 	}

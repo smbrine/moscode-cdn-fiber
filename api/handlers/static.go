@@ -13,83 +13,16 @@ import (
 	"time"
 )
 
-func serveGzipFile(
+func serveFile(
 	c *fiber.Ctx,
 	client *redis.Client,
 	ctx context.Context,
-	staticDir, safePath string,
+	staticDir, safePath, cacheKey string,
 	cacheTime time.Duration,
 ) error {
-	gzipSafePath := safePath + ".gz"
-	cacheKey := "file:" + gzipSafePath
-
 	cachedFile, err := client.Get(ctx, cacheKey).Bytes()
+
 	if err == nil && cachedFile != nil {
-		c.Set("Content-Encoding", "gzip")
-		ext := strings.TrimPrefix(filepath.Ext(safePath), ".")
-		c.Type(ext)
-		return c.Send(cachedFile)
-	}
-
-	compressedFilePath := filepath.Join(staticDir, gzipSafePath)
-	fileBytes, err := os.ReadFile(compressedFilePath)
-	if err != nil {
-		return c.Status(fiber.StatusNotFound).SendString("Compressed file not found")
-	}
-
-	client.Set(ctx, cacheKey, fileBytes, cacheTime)
-
-	c.Set("Content-Encoding", "gzip")
-	ext := strings.TrimPrefix(filepath.Ext(safePath), ".")
-	c.Type(ext)
-	return c.Send(fileBytes)
-}
-
-func serveBrotliFile(
-	c *fiber.Ctx,
-	client *redis.Client,
-	ctx context.Context,
-	staticDir, safePath string,
-	cacheTime time.Duration,
-) error {
-	brotliSafePath := safePath + ".br"
-	cacheKey := "file:" + brotliSafePath
-
-	cachedFile, err := client.Get(ctx, cacheKey).Bytes()
-	if err == nil && cachedFile != nil {
-		c.Set("Content-Encoding", "br")
-		ext := strings.TrimPrefix(filepath.Ext(safePath), ".")
-		c.Type(ext)
-		return c.Send(cachedFile)
-	}
-
-	compressedFilePath := filepath.Join(staticDir, brotliSafePath)
-	fileBytes, err := os.ReadFile(compressedFilePath)
-	if err != nil {
-		return c.Status(fiber.StatusNotFound).SendString("Compressed file not found")
-	}
-
-	client.Set(ctx, cacheKey, fileBytes, cacheTime)
-
-	c.Set("Content-Encoding", "br")
-	ext := strings.TrimPrefix(filepath.Ext(safePath), ".")
-	c.Type(ext)
-	return c.Send(fileBytes)
-}
-
-func serveUncompressedFile(
-	c *fiber.Ctx,
-	client *redis.Client,
-	ctx context.Context,
-	staticDir, safePath string,
-	cacheTime time.Duration,
-) error {
-	cacheKey := "file:" + safePath
-
-	cachedFile, err := client.Get(ctx, cacheKey).Bytes()
-	if err == nil && cachedFile != nil {
-		ext := strings.TrimPrefix(filepath.Ext(safePath), ".")
-		c.Type(ext)
 		return c.Send(cachedFile)
 	}
 
@@ -101,32 +34,71 @@ func serveUncompressedFile(
 
 	client.Set(ctx, cacheKey, fileBytes, cacheTime)
 
-	ext := strings.TrimPrefix(filepath.Ext(safePath), ".")
-	c.Type(ext)
-
 	return c.Send(fileBytes)
+}
+
+func serveGzip(
+	c *fiber.Ctx,
+	client *redis.Client,
+	ctx context.Context,
+	staticDir, safePath string,
+	cacheTime time.Duration,
+) error {
+	gzipSafePath := safePath + ".gz"
+	cacheKey := "file:" + gzipSafePath
+	c.Set("Content-Encoding", "gzip")
+	return serveFile(c, client, ctx, staticDir, gzipSafePath, cacheKey, cacheTime)
+}
+
+func serveBrotli(
+	c *fiber.Ctx,
+	client *redis.Client,
+	ctx context.Context,
+	staticDir, safePath string,
+	cacheTime time.Duration,
+) error {
+	brSafePath := safePath + ".br"
+	cacheKey := "file:" + brSafePath
+	c.Set("Content-Encoding", "br")
+	return serveFile(c, client, ctx, staticDir, brSafePath, cacheKey, cacheTime)
+}
+
+func serveUncompressed(
+	c *fiber.Ctx,
+	client *redis.Client,
+	ctx context.Context,
+	staticDir, safePath string,
+	cacheTime time.Duration,
+) error {
+	cacheKey := "file:" + safePath
+	return serveFile(c, client, ctx, staticDir, safePath, cacheKey, cacheTime)
 }
 
 func HandleStatic(c *fiber.Ctx) error {
 	reqPath := c.Path()
 	client := cdnRedis.GetRedisClient()
 	ctx := context.Background()
-	staticDir := configs.GetStaticDir()
+	appConfig := configs.GetConfig()
+	staticDir := appConfig.StaticDir
+	cacheFilesFor := time.Duration(appConfig.CacheFilesFor) * time.Second
 
 	safePath := filepath.Clean(reqPath)
-	acceptEncodingHeader := c.Get("Accept-Encoding")
 
+	ext := strings.TrimPrefix(filepath.Ext(safePath), ".")
+	c.Type(ext)
+
+	acceptEncodingHeader := c.Get("Accept-Encoding")
 	if strings.Contains(acceptEncodingHeader, "br") {
-		if err := serveBrotliFile(c, client, ctx, staticDir, safePath, 10*time.Second); err == nil {
+		if err := serveBrotli(c, client, ctx, staticDir, safePath, cacheFilesFor); err == nil {
 			return nil
 		}
 	} else if strings.Contains(acceptEncodingHeader, "gzip") {
-		if err := serveGzipFile(c, client, ctx, staticDir, safePath, 10*time.Second); err == nil {
+		if err := serveGzip(c, client, ctx, staticDir, safePath, cacheFilesFor); err == nil {
 			return nil
 		}
 	}
 
-	if err := serveUncompressedFile(c, client, ctx, staticDir, safePath, 10*time.Second); err != nil {
+	if err := serveUncompressed(c, client, ctx, staticDir, safePath, cacheFilesFor); err != nil {
 		log.Printf("Error serving uncompressed file: %v", err)
 		return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
 	}

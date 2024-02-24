@@ -7,16 +7,18 @@ import (
 )
 
 func UpdateStaticJob() {
-	if configs.GetBaseURL() != "" {
-		if err := httpclient.UpdateStatic(configs.GetBaseURL() + "/update"); err != nil {
+	appConfig := configs.GetConfig()
+	if appConfig.BaseURL != "" {
+		if err := httpclient.UpdateStatic(appConfig.BaseURL + "/update"); err != nil {
 			iLog.Println("Error handling update:", err)
 		}
 	}
 }
 
 func UpdateIndexJob() {
-	if configs.GetBaseURL() != "" {
-		err := httpclient.RefreshFile(configs.GetBaseURL(), "index.html", configs.GetTempDir(), configs.GetStaticDir())
+	appConfig := configs.GetConfig()
+	if appConfig.BaseURL != "" {
+		err := httpclient.RefreshFile(appConfig.BaseURL, "index.html", appConfig.TempDir, appConfig.StaticDir)
 		if err != nil {
 			iLog.Println("Error refreshing file:", err)
 		}
