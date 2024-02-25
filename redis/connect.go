@@ -1,30 +1,38 @@
 package redis
 
 import (
-	redisDB "github.com/redis/go-redis/v9"
+	"errors"
+	"github.com/redis/go-redis/v9"
 	"log"
 	"moscode-cdn-fiber/configs"
 	"sync"
 )
 
 var (
-	redisConnect     *redisDB.Options
+	redisConnect     *redis.Options
 	redisConnectOnce sync.Once
 )
 
-func getRedisOpt() *redisDB.Options {
+func getRedisOpt() (*redis.Options, error) {
+	var err error
 	redisConnectOnce.Do(func() {
 		appConfig := configs.GetConfig()
-		if a, e := redisDB.ParseURL(appConfig.RedisURL); e == nil {
-			redisConnect = a
+		if appConfig.RedisURL != "" {
+
+			if a, err := redis.ParseURL(appConfig.RedisURL); err == nil {
+				redisConnect = a
+			} else {
+				log.Fatal(err)
+			}
 		} else {
-			log.Fatal(e)
+			err = errors.New("redis url can't be empty")
 		}
 	})
 
-	return redisConnect
+	return redisConnect, err
 }
 
-func GetRedisClient() *redisDB.Client {
-	return redisDB.NewClient(getRedisOpt())
+func GetRedisClient() (*redis.Client, error) {
+	client, err := getRedisOpt()
+	return redis.NewClient(client), err
 }

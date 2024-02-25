@@ -40,10 +40,13 @@ func GetConfig() *AppConfig {
 }
 
 func atoiOrFallback(value string, fallback int) int {
-	if i, err := strconv.Atoi(value); err == nil {
-		return i
-	} else {
-		log.Printf("Error converting %s to int: %v", value, err)
-		return fallback
+	if value != "" {
+		if i, err := strconv.Atoi(value); err == nil {
+			return i
+		} else {
+			log.Printf("Error converting %s to int: %v", value, err)
+		}
 	}
+	return fallback
+
 }

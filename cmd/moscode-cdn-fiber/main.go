@@ -23,11 +23,16 @@ func main() {
 	cdnCron.ScheduleCronJob(c, staticSpec, cdnCron.UpdateStaticJob)
 	cdnCron.ScheduleCronJob(c, indexSpec, cdnCron.UpdateIndexJob)
 
+	app.Use(cors.New())
+
 	for _, page := range configs.UrlPages {
 		app.Get(page, func(c *fiber.Ctx) error { c.Path("/index.html"); return handlers.HandleStatic(c) })
 	}
-
-	app.Use(cors.New())
+	app.Get("/healthz", func(c *fiber.Ctx) error {
+		return c.Status(200).JSON(&fiber.Map{
+			"health": "ok",
+		})
+	})
 
 	app.Use(func(c *fiber.Ctx) error {
 		return handlers.HandleStatic(c)

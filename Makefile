@@ -3,3 +3,7 @@ run:
 
 build:
 	@export $$(cat .env | xargs) && go build cmd/moscode-cdn-fiber/main.go
+
+docker:
+	docker build -t smbrine/moscode-cdn .
+	docker push smbrine/moscode-cdn

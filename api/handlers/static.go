@@ -76,7 +76,10 @@ func serveUncompressed(
 
 func HandleStatic(c *fiber.Ctx) error {
 	reqPath := c.Path()
-	client := cdnRedis.GetRedisClient()
+	client, err := cdnRedis.GetRedisClient()
+	if err != nil {
+		return err
+	}
 	ctx := context.Background()
 	appConfig := configs.GetConfig()
 	staticDir := appConfig.StaticDir
@@ -103,5 +106,5 @@ func HandleStatic(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
 	}
 
-	return nil
+	return err
 }
