@@ -9,6 +9,7 @@ import (
 	cdnRedis "moscode-cdn-fiber/redis"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -74,6 +75,33 @@ func serveUncompressed(
 	return serveFile(c, client, ctx, staticDir, safePath, cacheKey, cacheTime)
 }
 
+func Contains(a []string, x string) bool {
+	for _, n := range a {
+		if x == n {
+			return true
+		}
+	}
+	return false
+}
+
+func cacheMaxAge(ext string) string {
+	maxAge := 180
+
+	fonts := []string{"woff2", "woff", "ttf"}
+	longTermAssets := []string{"js", "css", "jpg", "jpeg", "png", "svg", "ico"}
+	mediaAssets := []string{"mp4", "mp3", "avi", "wav"}
+
+	if Contains(fonts, ext) {
+		maxAge = 31536000 // 1 year
+	} else if Contains(longTermAssets, ext) {
+		maxAge = 86400 // 1 day
+	} else if Contains(mediaAssets, ext) {
+		maxAge = 604800 // 1 week
+	}
+
+	return strconv.Itoa(maxAge)
+}
+
 func HandleStatic(c *fiber.Ctx) error {
 	reqPath := c.Path()
 	client, err := cdnRedis.GetRedisClient()
@@ -91,6 +119,13 @@ func HandleStatic(c *fiber.Ctx) error {
 	c.Type(ext)
 
 	acceptEncodingHeader := c.Get("Accept-Encoding")
+
+	if safePath != "index.html" {
+		c.Set("Access-Control-Max-Age", cacheMaxAge(ext))
+	} else {
+		c.Set("Access-Control-Max-Age", "0")
+	}
+
 	if strings.Contains(acceptEncodingHeader, "br") {
 		if err := serveBrotli(c, client, ctx, staticDir, safePath, cacheFilesFor); err == nil {
 			return nil
